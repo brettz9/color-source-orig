@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="chrome://color_source/skin/color_source.css" type="text/css"?>
+<?xul-overlay href="chrome://editor/content/editorOverlay.xul"?>
+<!DOCTYPE window SYSTEM "chrome://color_source/locale/color_source.dtd">
+<overlay id="color_source-composer-overlay" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+	<script type="application/x-javascript" src="chrome://color_source/content/sh_main.js"/>
+	<script type="application/x-javascript" src="chrome://color_source/content/color_source.js"/>
+	<popup id="msgComposeContext">
+		<menu id="color_source-langMenu" label="&color_source-langMenu.label;" 
+				accesskey="&color_source-langMenu.accesskey;">
+			<menupopup id="color_source-langs"/>
+		</menu>
+		<menu id="color_source-skinMenu" label="&color_source-skinMenu.label;" 
+				accesskey="&color_source-skinMenu.accesskey;">
+			<menupopup id="color_source-skins"/>
+		</menu>
+	</popup>
+</overlay>

@@ -1,0 +1,4 @@
+content color_source content/
+skin color_source classic/1.0 skin/
+overlay chrome://messenger/content/messengercompose/messengercompose.xul chrome://color_source/content/color_source-composer.xul
+locale color_source en-US locale/en-US/
