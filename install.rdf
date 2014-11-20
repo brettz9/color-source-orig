@@ -2,10 +2,12 @@
 <RDF xmlns="http://www.w3.org/1999/02/22-rdf-syntax-ns#" 
  xmlns:em="http://www.mozilla.org/2004/em-rdf#">
   <Description about="urn:mozilla:install-manifest">
+    <em:unpack>true</em:unpack>
     <em:id>color_source@brett.zamir</em:id>
     <em:name>Color Source</em:name>
-    <em:version>0.6</em:version>
+    <em:version>0.6.1</em:version>
     <em:creator>Brett Zamir</em:creator>
+    <em:contributor>Macavity Tuitio</em:contributor>
     <em:homepageURL>http://brett-zamir.me</em:homepageURL>
     <em:description>Add syntax highlighting of code to email messages</em:description>
     <!--<em:iconURL>chrome://color_source/skin/icon.png</em:iconURL>-->
@@ -15,8 +17,8 @@
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id> <!-- Thunderbird -->
-        <em:minVersion>3.0</em:minVersion>
-        <em:maxVersion>3.0.*</em:maxVersion>
+        <em:minVersion>8.0</em:minVersion>
+        <em:maxVersion>31.*</em:maxVersion>
       </Description>
     </em:targetApplication>
   </Description>

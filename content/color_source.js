@@ -4,6 +4,7 @@
 var NS_XUL = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul';
 var Cc = Components.classes;
 var Ci = Components.interfaces;
+var Cu = Components.utils;
 
 // Private methods
 function _removeAllChildren (elem) {
@@ -20,20 +21,6 @@ function ser (dom) {
 
 function _makeFileURL (path) {
     return 'file://'+path.replace(/\\/g, '/')+'/';
-}
-
-/**
- * Get a directory within an extension
- * @param {String} ext_id The extension's unique ID from install.rdf
- * @param {String} dir The directory
- * @returns {Components.interfaces.nsIFile} The (directory) file object
- */
-function _getExtensionDirectory (ext_id, dir) {
-    var em = Cc["@mozilla.org/extensions/manager;1"].
-             getService(Ci.nsIExtensionManager);
-    // the path may use forward slash ("/") as the delimiter
-    // returns nsIFile for the extension's install.rdf
-    return em.getInstallLocation(ext_id).getItemFile(ext_id, dir);
 }
 
 function _file_get_contents (url, callback, errCb, currentStyle) {
@@ -60,41 +47,51 @@ function _file_get_contents (url, callback, errCb, currentStyle) {
 
 
 /**
- * @param {String} id ID of the menupopup
- * @param {Components.interfaces.nsIFile} dir Directory to iterate for content
- * @param {String} prefix The prefix to use for localization (e.g., 'lang_' or 'skin_')
- * @param {RegExp} regex Regular expression to isolate (localizable) string out of file name
+ * @param {String}  id ID of the menupopup
+ * @param {String}  dir Directory to iterate for content
+ * @param {String}  prefix The prefix to use for localization (e.g., 'lang_' or 'skin_')
+ * @param {RegExp}  regex Regular expression to isolate (localizable) string out of file name
  * @param {Boolean} checkbox Whether the menu items should be checkboxes or not
  */
 function _populateMenu (id, dir, prefix, regex, checkbox) {
+    var self = this;
+    var entry;
     var popup = document.getElementById(id);
-    var entries = dir.directoryEntries;
-    while (entries.hasMoreElements()) {
-        var entry = entries.getNext();
-        entry.QueryInterface(Components.interfaces.nsIFile);
-        var value = entry.path.match(regex)[1];
-
-        var menuitem = document.createElementNS(NS_XUL, 'menuitem');
-        if (checkbox) {
-            menuitem.setAttribute('type', 'checkbox');
+    var iterator = new OS.File.DirectoryIterator(dir);
+    var promise = iterator.forEach(
+        function onEntry(entry) {
+            if (!entry.isDir) {
+                var value = entry.path.match(regex)[1];
+                var menuitem = document.createElementNS(NS_XUL, 'menuitem');
+                if (checkbox) {
+                    menuitem.setAttribute('type', 'checkbox');
+                }
+                var localeValue, localeAccessKey;
+                try {
+                    localeValue = self.STRS.GetStringFromName(prefix+value);
+                }
+                catch(e) {}
+                try {
+                    localeAccessKey = self.STRS.GetStringFromName(prefix+'_accesskey_'+value);
+                }
+                catch(e) {}
+                menuitem.setAttribute('value', value);
+                menuitem.setAttribute('id', value);
+                menuitem.setAttribute('label', localeValue || value); // Allow translation (or at least better naming) of languages
+                menuitem.setAttribute('accesskey', localeAccessKey || value.substr(0, 1));
+                popup.appendChild(menuitem);
+            }
         }
-
-        var localeValue, localeAccessKey;
-        try {
-            localeValue = this.STRS.GetStringFromName(prefix+value);
+    );
+    promise.then(
+        function onSuccess() {
+            iterator.close();
+        },
+        function onFailure(reason) {
+            iterator.close();
+            dump(reason);
         }
-        catch(e) {}
-        try {
-            localeAccessKey = this.STRS.GetStringFromName(prefix+'_accesskey_'+value);
-        }
-        catch(e) {}
-
-        menuitem.setAttribute('value', value);
-        menuitem.setAttribute('id', value);
-        menuitem.setAttribute('label', localeValue || value); // Allow translation (or at least better naming) of languages
-        menuitem.setAttribute('accesskey', localeAccessKey || value.substr(0, 1));
-        popup.appendChild(menuitem);
-    }
+    );
     return popup;
 }
 
@@ -112,19 +109,28 @@ function _getCurrentStylesheet (path, cb, errCb) {
 
 var color_source = {
     onLoad : function () {
+        Cu.import("resource://gre/modules/AddonManager.jsm", null)
+            .AddonManager
+            .getAddonByID(
+                "color_source@brett.zamir",
+                function(addon) {
+                    color_source.dir = addon.getResourceURI().path;
+                    color_source.run();
+                }
+            );
+    },
+    run : function () {
         var that = this;
         this.appliedStyles = {};
         var STR_PROPERTIES = 'chrome://color_source/locale/color_source.properties';
         this.STRS = Cc['@mozilla.org/intl/stringbundle;1'].getService(Ci.nsIStringBundleService).
                                                 createBundle(STR_PROPERTIES);
 
-        var langDir = _getExtensionDirectory("color_source@brett.zamir", "content/langs");
-        this.langDirPath = langDir.path;
-        var skinDir = _getExtensionDirectory("color_source@brett.zamir", "skin");
-        this.skinDirPath = skinDir.path;
+        this.langDirPath = OS.Path.join(this.dir, "content", "langs");
+        this.skinDirPath = OS.Path.join(this.dir, "skin");
 
-        var langMenupopup = _populateMenu.call(this, 'color_source-langs', langDir, 'lang_', /[\/\\]sh_([^\/\\]*?)\.js$/);
-        var skinMenupopup = _populateMenu.call(this, 'color_source-skins', skinDir, 'skin_', /[\/\\]sh_([^\/\\]*?)\.css$/, true);
+        var langMenupopup = _populateMenu.call(this, 'color_source-langs', this.langDirPath, 'lang_', /[\/\\]sh_([^\/\\]*?)\.js$/);
+        var skinMenupopup = _populateMenu.call(this, 'color_source-skins', this.skinDirPath, 'skin_', /[\/\\]sh_([^\/\\]*?)\.css$/, true);
 
 /**
 // Works but need to implement CSS editor
@@ -138,8 +144,11 @@ var color_source = {
         this.prefs = Cc['@mozilla.org/preferences-service;1'].getService(Ci.nsIPrefService);
         var lastStyle = this.prefs.getCharPref('extensions.color_source.lastStyle');
         if (lastStyle) {
-            document.getElementById(lastStyle).setAttribute('checked', 'true');
-            this.currElement = document.getElementById(lastStyle);
+            try {
+                document.getElementById(lastStyle).setAttribute('checked', 'true');
+                this.currElement = document.getElementById(lastStyle);
+            }
+            catch(ex){}
         }
 
         langMenupopup.addEventListener('command',
