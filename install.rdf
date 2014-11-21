@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<RDF xmlns="http://www.w3.org/1999/02/22-rdf-syntax-ns#" 
+<RDF xmlns="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
  xmlns:em="http://www.mozilla.org/2004/em-rdf#">
   <Description about="urn:mozilla:install-manifest">
     <em:id>color_source@brett.zamir</em:id>
     <em:name>Color Source</em:name>
-    <em:version>0.6.1</em:version>
+    <em:unpack>true</em:unpack>
+    <em:type>2</em:type><!-- Extension -->
     <em:creator>Brett Zamir</em:creator>
     <em:contributor>Macavity Tuitio</em:contributor>
     <em:homepageURL>https://github.com/brettz9/color-source-orig</em:homepageURL>
