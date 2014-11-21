@@ -1,20 +1,23 @@
+Changes to version 0.6.1
+* Update supported versions
+
 Changes to version 0.6
-// Fix conversion of carriage return + newline to just newlines (for Windows)
+* Fix conversion of carriage return + newline to just newlines (for Windows)
 
 Changes to version 0.5
-// Fix sometime crashes when adding colored code
+* Fix sometime crashes when adding colored code
 
 Changes to version 0.4
-// No significant changes
+* No significant changes
 
 Changes to version 0.3
-// Update variable/function naming
-// Update "namespacing" of hidden CSS classes so that different style-sheets can be applied within the same email
+* Update variable/function naming
+* Update "namespacing" of hidden CSS classes so that different style-sheets can be applied within the same email
 
 Changes to version 0.2
-// Avoid Ajax XML error in console
-// Fix problem whereby coloring only worked if stylesheet had just been chosen
-// Gave default preference for stylesheet
+* Avoid Ajax XML error in console
+* Fix problem whereby coloring only worked if stylesheet had just been chosen
+* Gave default preference for stylesheet
 
 Changes to version 0.1
-// Started extension
+* Started extension
