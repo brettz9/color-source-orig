@@ -1,12 +1,14 @@
+/*jslint vars:true, continue:true*/
+/*global Components*/
 /*
 SHJS - Syntax Highlighting in JavaScript
 Copyright (C) 2007, 2008 gnombat@users.sourceforge.net
 License: http://shjs.sourceforge.net/doc/gplv3.html
 */
 
-if (! this.sh_languages) {
-  this.sh_languages = {};
-}
+var sh_languages = {};
+var sh_highlightByLanguage = (function () {'use strict';
+
 var sh_requests = {};
 
 function sh_isEmailAddress(url) {
@@ -27,27 +29,6 @@ function sh_setHref(tags, numTags, inputString) {
   tags[numTags - 2].node.href = url;
 }
 
-/*
-Konqueror has a bug where the regular expression /$/g will not match at the end
-of a line more than once:
-
-  var regex = /$/g;
-  var match;
-
-  var line = '1234567890';
-  regex.lastIndex = 10;
-  match = regex.exec(line);
-
-  var line2 = 'abcde';
-  regex.lastIndex = 5;
-  match = regex.exec(line2);  // fails
-*/
-function sh_konquerorExec(s) {
-  var result = [''];
-  result.index = s.length;
-  result.input = s;
-  return result;
-}
 
 /**
 Highlights all elements containing source code in a text string.  The return
@@ -130,11 +111,13 @@ function sh_highlightString(inputString, language, classPrefix) {
   var endOfLinePattern = /\r\n|\r|\n/g;
   endOfLinePattern.lastIndex = 0;
   var inputStringLength = inputString.length;
+  var i, start, endOfLineMatch, end, startOfNextLine, matchCache, line,
+      posWithinLine, stateIndex, stackLength, state, numPatterns, mc,
+      bestMatch, bestPatternIndex, match, regex, pattern, newStyle,
+      matchedString, subexpression;
   while (pos < inputStringLength) {
-    var start = pos;
-    var end;
-    var startOfNextLine;
-    var endOfLineMatch = endOfLinePattern.exec(inputString);
+    start = pos;
+    endOfLineMatch = endOfLinePattern.exec(inputString);
     if (endOfLineMatch === null) {
       end = inputStringLength;
       startOfNextLine = inputStringLength;
@@ -144,14 +127,13 @@ function sh_highlightString(inputString, language, classPrefix) {
       startOfNextLine = endOfLinePattern.lastIndex;
     }
 
-    var line = inputString.substring(start, end);
+    line = inputString.substring(start, end);
 
-    var matchCache = [];
+    matchCache = [];
     for (;;) {
-      var posWithinLine = pos - start;
+      posWithinLine = pos - start;
 
-      var stateIndex;
-      var stackLength = patternStack.length;
+      stackLength = patternStack.length;
       if (stackLength === 0) {
         stateIndex = 0;
       }
@@ -160,21 +142,20 @@ function sh_highlightString(inputString, language, classPrefix) {
         stateIndex = patternStack[stackLength - 1][2];
       }
 
-      var state = language[stateIndex];
-      var numPatterns = state.length;
-      var mc = matchCache[stateIndex];
-      if (! mc) {
+      state = language[stateIndex];
+      numPatterns = state.length;
+      mc = matchCache[stateIndex];
+      if (!mc) {
         mc = matchCache[stateIndex] = [];
       }
-      var bestMatch = null;
-      var bestPatternIndex = -1;
-      for (var i = 0; i < numPatterns; i++) {
-        var match;
+      bestMatch = null;
+      bestPatternIndex = -1;
+      for (i = 0; i < numPatterns; i++) {
         if (i < mc.length && (mc[i] === null || posWithinLine <= mc[i].index)) {
           match = mc[i];
         }
         else {
-          var regex = state[i][0];
+          regex = state[i][0];
           regex.lastIndex = posWithinLine;
           match = regex.exec(line);
           mc[i] = match;
@@ -192,44 +173,41 @@ function sh_highlightString(inputString, language, classPrefix) {
         output(line.substring(posWithinLine), null);
         break;
       }
+      // got a match
+      if (bestMatch.index > posWithinLine) {
+        output(line.substring(posWithinLine, bestMatch.index), null);
+      }
+
+      pattern = state[bestPatternIndex];
+
+      newStyle = pattern[1];
+      if (newStyle instanceof Array) {
+        for (subexpression = 0; subexpression < newStyle.length; subexpression++) {
+          matchedString = bestMatch[subexpression + 1];
+          output(matchedString, newStyle[subexpression]);
+        }
+      }
       else {
-        // got a match
-        if (bestMatch.index > posWithinLine) {
-          output(line.substring(posWithinLine, bestMatch.index), null);
-        }
+        matchedString = bestMatch[0];
+        output(matchedString, newStyle);
+      }
 
-        var pattern = state[bestPatternIndex];
-
-        var newStyle = pattern[1];
-        var matchedString;
-        if (newStyle instanceof Array) {
-          for (var subexpression = 0; subexpression < newStyle.length; subexpression++) {
-            matchedString = bestMatch[subexpression + 1];
-            output(matchedString, newStyle[subexpression]);
-          }
-        }
-        else {
-          matchedString = bestMatch[0];
-          output(matchedString, newStyle);
-        }
-
-        switch (pattern[2]) {
-        case -1:
-          // do nothing
-          break;
-        case -2:
-          // exit
-          patternStack.pop();
-          break;
-        case -3:
-          // exitall
-          patternStack.length = 0;
-          break;
-        default:
-          // this was the start of a delimited pattern or a state/environment
-          patternStack.push(pattern);
-          break;
-        }
+      switch (pattern[2]) {
+      case -1:
+        // do nothing
+        break;
+      case -2:
+        // exit
+        patternStack.pop();
+        break;
+      case -3:
+        // exitall
+        patternStack.length = 0;
+        break;
+      default:
+        // this was the start of a delimited pattern or a state/environment
+        patternStack.push(pattern);
+        break;
       }
     }
 
@@ -255,7 +233,8 @@ function sh_getClasses(element) {
   var htmlClass = element.className;
   if (htmlClass && htmlClass.length > 0) {
     var htmlClasses = htmlClass.split(' ');
-    for (var i = 0; i < htmlClasses.length; i++) {
+    var i;
+    for (i = 0; i < htmlClasses.length; i++) {
       if (htmlClasses[i].length > 0) {
         result.push(htmlClasses[i]);
       }
@@ -266,7 +245,8 @@ function sh_getClasses(element) {
 
 function sh_addClass(element, name) {
   var htmlClasses = sh_getClasses(element);
-  for (var i = 0; i < htmlClasses.length; i++) {
+  var i;
+  for (i = 0; i < htmlClasses.length; i++) {
     if (name.toLowerCase() === htmlClasses[i].toLowerCase()) {
       return;
     }
@@ -281,13 +261,12 @@ Extracts the tags from an HTML DOM NodeList.
 @param  result  an object with text, tags and pos properties
 */
 function sh_extractTagsFromNodeList(nodeList, result) {
-  var length = nodeList.length;
-  for (var i = 0; i < length; i++) {
-    var node = nodeList.item(i);
+  var i, node, terminator, length = nodeList.length;
+  for (i = 0; i < length; i++) {
+    node = nodeList.item(i);
     switch (node.nodeType) {
     case 1:
       if (node.nodeName.toLowerCase() === 'br') {
-        var terminator;
         if (/MSIE/.test(navigator.userAgent)) {
           terminator = '\r';
         }
@@ -351,9 +330,10 @@ function sh_mergeTags(originalTags, highlightTags) {
   var originalIndex = 0;
   var highlightIndex = 0;
 
+  var originalTag, highlightTag;
   while (originalIndex < numOriginalTags && highlightIndex < numHighlightTags) {
-    var originalTag = originalTags[originalIndex];
-    var highlightTag = highlightTags[highlightIndex];
+    originalTag = originalTags[originalIndex];
+    highlightTag = highlightTags[highlightIndex];
 
     if (originalTag.pos <= highlightTag.pos) {
       result.push(originalTag);
@@ -406,9 +386,8 @@ function sh_insertTags(tags, text) {
   var currentNode = result;
 
   // output one tag or text node every iteration
+  var tag, tagPos, newNode;
   while (textPos < textLength || tagIndex < numTags) {
-    var tag;
-    var tagPos;
     if (tagIndex < numTags) {
       tag = tags[tagIndex];
       tagPos = tag.pos;
@@ -421,7 +400,7 @@ function sh_insertTags(tags, text) {
       // output the tag
       if (tag.node) {
         // start tag
-        var newNode = tag.node;
+        newNode = tag.node;
         currentNode.appendChild(newNode);
         currentNode = newNode;
       }
@@ -462,15 +441,12 @@ function sh_highlightElement(element, language, classPrefix) {
   return element; // Brett added
 }
 
-function sh_getXMLHttpRequest() {
-  if (window.ActiveXObject) {
-    return new ActiveXObject('Msxml2.XMLHTTP');
-  }
-  else if (window.XMLHttpRequest) {
+/*function sh_getXMLHttpRequest() {
+  if (window.XMLHttpRequest) {
     return new XMLHttpRequest();
   }
   throw 'No XMLHttpRequest implementation available';
-}
+}*/
 
 function sh_load(language, element, prefix, suffix, callback, classPrefix) {
   if (language in sh_requests) {
@@ -478,7 +454,7 @@ function sh_load(language, element, prefix, suffix, callback, classPrefix) {
     return;
   }
   sh_requests[language] = [element];
-  var request = sh_getXMLHttpRequest();
+  // var request = sh_getXMLHttpRequest();
   var url = prefix + 'sh_' + language + suffix+'?date'+(new Date()); // avoid caching
 
   var Cc = Components.classes;
@@ -487,7 +463,8 @@ function sh_load(language, element, prefix, suffix, callback, classPrefix) {
   loader.loadSubScript(url);
  
   var elements = sh_requests[language];
-  for (var i = 0; i < elements.length; i++) {
+  var i;
+  for (i = 0; i < elements.length; i++) {
     sh_highlightElement(elements[i], sh_languages[language], classPrefix);
   }
   // Brett added:
@@ -522,7 +499,7 @@ function sh_load(language, element, prefix, suffix, callback, classPrefix) {
     }
   };
   request.send(null);
-//*/
+*/
 }
 
 /**
@@ -531,18 +508,19 @@ containing source code must be "pre" elements with a "class" attribute of
 "sh_LANGUAGE", where LANGUAGE is a valid language identifier; e.g., "sh_java"
 identifies the element as containing "java" language source code.
 */
-function sh_highlightDocument(prefix, suffix, callback, classPrefix) {
+/*function sh_highlightDocument(prefix, suffix, callback, classPrefix) {
   var nodeList = document.getElementsByTagName('pre');
-  for (var i = 0; i < nodeList.length; i++) {
-    var element = nodeList.item(i);
-    var htmlClasses = sh_getClasses(element);
-    for (var j = 0; j < htmlClasses.length; j++) {
-      var htmlClass = htmlClasses[j].toLowerCase();
+  var i, j, language, element, htmlClasses, htmlClass;
+  for (i = 0; i < nodeList.length; i++) {
+    element = nodeList.item(i);
+    htmlClasses = sh_getClasses(element);
+    for (j = 0; j < htmlClasses.length; j++) {
+      htmlClass = htmlClasses[j].toLowerCase();
       if (htmlClass === 'sh_sourcecode') {
         continue;
       }
       if (htmlClass.substr(0, 3) === 'sh_') {
-        var language = htmlClass.substring(3);
+        language = htmlClass.substring(3);
 
         // EXTRACTED ORIGINAL CONTENTS INTO sh_highlightByLanguage BELOW
         try {
@@ -556,7 +534,7 @@ function sh_highlightDocument(prefix, suffix, callback, classPrefix) {
       }
     }
   }
-}
+}*/
 
 /**
  * Brett extracted from sh_highlightDocument into own function, so this could be used to obtain
@@ -568,10 +546,14 @@ function sh_highlightByLanguage (language, element, prefix, suffix, callback, cl
       element = sh_highlightElement(element, sh_languages[language], classPrefix);
       callback([element]);
     }
-    else if (typeof(prefix) === 'string' && typeof(suffix) === 'string') {
+    else if (typeof prefix === 'string' && typeof suffix === 'string') {
       sh_load(language, element, prefix, suffix, callback, classPrefix);
     }
     else { // Brett makes up own error in order to not depend on a class being present
         throw 'Language ' + language + ' not found';
     }
 }
+
+return sh_highlightByLanguage;
+
+}());

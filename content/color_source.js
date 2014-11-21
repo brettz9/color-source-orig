@@ -1,4 +1,7 @@
-(function () {
+/*jslint vars:true*/
+/*global Components, XMLSerializer, OS, dump, GetCurrentEditor, sh_highlightByLanguage*/
+
+var color_source = (function () {'use strict';
 
 // Private variables
 var NS_XUL = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul';
@@ -6,15 +9,12 @@ var Cc = Components.classes;
 var Ci = Components.interfaces;
 var Cu = Components.utils;
 
-// Private methods
-function _removeAllChildren (elem) {
-    var popupChild = elem.firstChild;
-    while (popupChild) {
-        elem.removeChild(popupChild);
-        popupChild = elem.firstChild;
-    }
+function l (s) {
+    var c = Cc["@mozilla.org/consoleservice;1"].getService(Ci.nsIConsoleService);
+    c.logStringMessage(s);
 }
 
+// Private methods
 function ser (dom) {
     return new XMLSerializer().serializeToString(dom);
 }
@@ -52,10 +52,10 @@ function _file_get_contents (url, callback, errCb, currentStyle) {
  * @param {String}  prefix The prefix to use for localization (e.g., 'lang_' or 'skin_')
  * @param {RegExp}  regex Regular expression to isolate (localizable) string out of file name
  * @param {Boolean} checkbox Whether the menu items should be checkboxes or not
+ * @returns {XULElement} Modified menu popup
  */
-function _populateMenu (id, dir, prefix, regex, checkbox) {
+function _populateMenu (id, dir, prefix, regex, checkbox, successCb) {
     var self = this;
-    var entry;
     var popup = document.getElementById(id);
     var iterator = new OS.File.DirectoryIterator(dir);
     var promise = iterator.forEach(
@@ -70,11 +70,11 @@ function _populateMenu (id, dir, prefix, regex, checkbox) {
                 try {
                     localeValue = self.STRS.GetStringFromName(prefix+value);
                 }
-                catch(e) {}
+                catch(ignore) {}
                 try {
                     localeAccessKey = self.STRS.GetStringFromName(prefix+'_accesskey_'+value);
                 }
-                catch(e) {}
+                catch(ignore) {}
                 menuitem.setAttribute('value', value);
                 menuitem.setAttribute('id', value);
                 menuitem.setAttribute('label', localeValue || value); // Allow translation (or at least better naming) of languages
@@ -85,6 +85,9 @@ function _populateMenu (id, dir, prefix, regex, checkbox) {
     );
     promise.then(
         function onSuccess() {
+            if (successCb) {
+                successCb();
+            }
             iterator.close();
         },
         function onFailure(reason) {
@@ -107,7 +110,7 @@ function _getCurrentStylesheet (path, cb, errCb) {
     _file_get_contents(_makeFileURL(path)+'sh_'+currentStyle+'.css', cb, errCb, currentStyle);
 }
 
-var color_source = {
+return {
     onLoad : function () {
         Cu.import("resource://gre/modules/AddonManager.jsm", null)
             .AddonManager
@@ -126,31 +129,39 @@ var color_source = {
         this.STRS = Cc['@mozilla.org/intl/stringbundle;1'].getService(Ci.nsIStringBundleService).
                                                 createBundle(STR_PROPERTIES);
 
-        this.langDirPath = OS.Path.join(this.dir, "content", "langs");
-        this.skinDirPath = OS.Path.join(this.dir, "skin");
+        //this.langDirPath = OS.Path.join(this.dir, "content", "langs");
+        //this.skinDirPath = OS.Path.join(this.dir, "skin");
+
+        var langDir = this.dir.clone();
+        langDir.append('content');
+        langDir.append('langs');
+        this.langDirPath = langDir.path;
+
+        var skinDir = this.dir.clone();
+        skinDir.append('skin');
+        this.skinDirPath = skinDir.path;
+
+l('ldp:' + this.langDirPath);
+l('sdp:' + this.skinDirPath);
 
         var langMenupopup = _populateMenu.call(this, 'color_source-langs', this.langDirPath, 'lang_', /[\/\\]sh_([^\/\\]*?)\.js$/);
-        var skinMenupopup = _populateMenu.call(this, 'color_source-skins', this.skinDirPath, 'skin_', /[\/\\]sh_([^\/\\]*?)\.css$/, true);
+        var skinMenupopup = _populateMenu.call(this, 'color_source-skins', this.skinDirPath, 'skin_', /[\/\\]sh_([^\/\\]*?)\.css$/, true, function () {
+            that.prefs = Cc['@mozilla.org/preferences-service;1'].getService(Ci.nsIPrefService);
+            var lastStyle = that.prefs.getCharPref('extensions.color_source.lastStyle');
+            if (lastStyle) {
+                document.getElementById(lastStyle).setAttribute('checked', 'true');
+                that.currElement = document.getElementById(lastStyle);
+            }
+        });
 
 /**
-// Works but need to implement CSS editor
+ Works but need to implement CSS editor
         var menuitem = document.createElementNS(NS_XUL, 'menuitem');
         menuitem.setAttribute('value', 'createNewStyles');
         menuitem.setAttribute('label', this.STRS.GetStringFromName('createNewStyles')); // Allow translation (or at least better naming) of languages
         menuitem.setAttribute('accesskey', this.STRS.GetStringFromName('access_createNewStyles'));
         skinMenupopup.appendChild(menuitem);
-//*/
-
-        this.prefs = Cc['@mozilla.org/preferences-service;1'].getService(Ci.nsIPrefService);
-        var lastStyle = this.prefs.getCharPref('extensions.color_source.lastStyle');
-        if (lastStyle) {
-            try {
-                document.getElementById(lastStyle).setAttribute('checked', 'true');
-                this.currElement = document.getElementById(lastStyle);
-            }
-            catch(ex){}
-        }
-
+*/
         langMenupopup.addEventListener('command',
             function (e) {
                 that.colorCode(e.target.value);
@@ -214,9 +225,8 @@ var color_source = {
     }
 };
 
-this.color_source = color_source;
-
 }());
 
-window.addEventListener('load', function () {color_source.onLoad();}, false);
-
+window.addEventListener('load', function () {'use strict';
+    color_source.onLoad();
+}, false);
