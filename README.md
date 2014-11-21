@@ -1,4 +1,4 @@
-color-source-orig
-=================
+# color-source-orig
 
-Original code for Firefox "Color Source" add-on
+Firefox [Color Source](https://addons.mozilla.org/en-US/thunderbird/addon/color-source/)
+add-on to add syntax highlighting of code to email messages.
