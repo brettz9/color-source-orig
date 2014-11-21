@@ -132,6 +132,7 @@ return {
         //this.langDirPath = OS.Path.join(this.dir, "content", "langs");
         //this.skinDirPath = OS.Path.join(this.dir, "skin");
 
+        // Remove unpack:true in install.rdf and use nsIZipReader as per see http://stackoverflow.com/questions/27067723/how-to-iterate-files-in-add-on-directory
         var langDir = this.dir.clone();
         langDir.append('content');
         langDir.append('langs');
