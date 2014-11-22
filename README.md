@@ -3,6 +3,13 @@
 Firefox [Color Source](https://addons.mozilla.org/en-US/thunderbird/addon/color-source/)
 add-on to add syntax highlighting of code to email messages.
 
+# To-dos
++ In order to get fulling working for latest versions of Thunderbird in a
+manner that will be accepted at AMO, we still need to remove em:unpack:true
+in install.rdf and use [nsIZipReader](https://developer.mozilla.org/en-US/docs/Mozilla/Tech/XPCOM/Reference/Interface/nsIZipReader)
+as per
+[this StackOverflow post](http://stackoverflow.com/questions/27067723/how-to-iterate-files-in-add-on-directory)
+
 # Credits
 
 + Uses [SHJS](http://shjs.sourceforge.net) as the coloring mechanism.
